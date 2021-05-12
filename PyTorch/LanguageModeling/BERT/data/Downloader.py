@@ -24,6 +24,8 @@ class Downloader:
     def __init__(self, dataset_name, save_path):
         self.dataset_name = dataset_name
         self.save_path = save_path
+        # self.all_langs = ["ar", "bn", "en", "fi","id", "ko", "ru", "sw", "te"]
+        self.all_langs = ["sw"]
 
     def download(self):
         if self.dataset_name == 'bookscorpus':
@@ -31,6 +33,9 @@ class Downloader:
 
         elif self.dataset_name == 'wikicorpus_en':
             self.download_wikicorpus('en')
+
+        elif self.dataset_name == 'wikicorpus_all':
+            self.download_wikicorpus('all')
 
         elif self.dataset_name == 'wikicorpus_zh':
             self.download_wikicorpus('zh')
@@ -66,8 +71,13 @@ class Downloader:
         downloader.download()
 
     def download_wikicorpus(self, language):
-        downloader = WikiDownloader(language, self.save_path)
-        downloader.download()
+        if language == "all":
+          for ln in self.all_langs:
+            downloader = WikiDownloader(ln, self.save_path)
+            downloader.download()
+        else:
+            downloader = WikiDownloader(language, self.save_path)
+            downloader.download()
 
     def download_google_pretrained_weights(self):
         downloader = GooglePretrainedWeightDownloader(self.save_path)

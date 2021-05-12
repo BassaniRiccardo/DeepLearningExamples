@@ -23,9 +23,12 @@ import os
 import pprint
 import subprocess
 
+CREATE_PRETRAINING_DATA_SCRIPT_PATH = 'python /content/drive/MyDrive/Thesis/projectFiles/DeepLearningExamples/TensorFlow/LanguageModeling/BERT/utils/create_pretraining_data.py'
 
 def main(args):
     working_dir = os.environ['BERT_PREP_WORKING_DIR']
+    # langs_all = ["ar", "bn", "en", "fi","id", "ko", "ru", "sw", "te"]
+    langs_all = ["sw"]
 
     print('Working Directory:', working_dir)
     print('Action:', args.action)
@@ -104,6 +107,18 @@ def main(args):
 
             assert os.stat(output_filename).st_size > 0, 'File glob did not pick up extracted wiki files from WikiExtractor.'
 
+        elif args.dataset == 'wikicorpus_all':
+          for ln in langs_all:
+            if args.skip_wikiextractor == 0:
+                  path_to_wikiextractor_in_container = '/workspace/wikiextractor/WikiExtractor.py'
+                  wikiextractor_command = path_to_wikiextractor_in_container + ' ' + directory_structure['download'] + '/wikicorpus_' + ln + '/wikicorpus_' + ln + '.xml ' + '-b 1M --processes ' + str(args.n_processes) + ' -o ' + directory_structure['extracted'] + '/wikicorpus_' + ln
+                  print('WikiExtractor Command:', wikiextractor_command)
+                  wikiextractor_process = subprocess.run(wikiextractor_command, shell=True, check=True)
+            wiki_path = directory_structure['extracted'] + '/wikicorpus_' + ln
+            output_filename = directory_structure['formatted'] + '/wikicorpus_' + ln +'_one_article_per_line.txt'
+            wiki_formatter = WikicorpusTextFormatting.WikicorpusTextFormatting(wiki_path, output_filename, recursive=True)
+            wiki_formatter.merge()
+
     elif args.action == 'sharding':
         # Note: books+wiki requires user to provide list of input_files (comma-separated with no spaces)
         if args.dataset == 'bookscorpus' or 'wikicorpus' in args.dataset or 'books_wiki' in args.dataset:
@@ -114,6 +129,10 @@ def main(args):
                     args.input_files = [directory_structure['formatted'] + '/wikicorpus_en_one_article_per_line.txt']
                 elif args.dataset == 'wikicorpus_zh':
                     args.input_files = [directory_structure['formatted'] + '/wikicorpus_zh_one_article_per_line.txt']
+                elif args.dataset == 'wikicorpus_all':
+                    args.input_files = []
+                    for ln in langs_all:
+                      args.input_files.append(directory_structure['formatted'] + '/wikicorpus_' + ln + '_one_article_per_line.txt')
                 elif args.dataset == 'books_wiki_en_corpus':
                     args.input_files = [directory_structure['formatted'] + '/bookscorpus_one_book_per_line.txt', directory_structure['formatted'] + '/wikicorpus_en_one_article_per_line.txt']
 
@@ -129,6 +148,8 @@ def main(args):
             # it seemed unnecessarily complicated to add an additional preprocessing step to call just for this.
             # Different languages (e.g., Chinese simplified/traditional) may require translation and
             # other packages to be called from here -- just add a conditional branch for those extra steps
+
+            # be careful here with ad hoc English preprocessing and eventually skip it
             segmenter = TextSharding.NLTKSegmenter()
             sharding = TextSharding.Sharding(args.input_files, output_file_prefix, args.n_training_shards, args.n_test_shards, args.fraction_test_set)
 
@@ -147,7 +168,7 @@ def main(args):
             os.makedirs(directory_structure['tfrecord'] + "/" + args.dataset)
 
         def create_record_worker(filename_prefix, shard_id, output_format='tfrecord'):
-            bert_preprocessing_command = 'python /workspace/bert/create_pretraining_data.py'
+            bert_preprocessing_command = CREATE_PRETRAINING_DATA_SCRIPT_PATH
             bert_preprocessing_command += ' --input_file=' + directory_structure['sharded'] + '/' + args.dataset + '/' + filename_prefix + '_' + str(shard_id) + '.txt'
             bert_preprocessing_command += ' --output_file=' + directory_structure['tfrecord'] + '/' + args.dataset + '/' + filename_prefix + '_' + str(shard_id) + '.' + output_format
             bert_preprocessing_command += ' --vocab_file=' + args.vocab_file
@@ -186,7 +207,7 @@ def main(args):
             os.makedirs(directory_structure['hdf5'] + "/" + args.dataset)
 
         def create_record_worker(filename_prefix, shard_id, output_format='hdf5'):
-            bert_preprocessing_command = 'python /workspace/bert/create_pretraining_data.py'
+            bert_preprocessing_command = CREATE_PRETRAINING_DATA_SCRIPT_PATH
             bert_preprocessing_command += ' --input_file=' + directory_structure['sharded'] + '/' + args.dataset + '/' + filename_prefix + '_' + str(shard_id) + '.txt'
             bert_preprocessing_command += ' --output_file=' + directory_structure['hdf5'] + '/' + args.dataset + '/' + filename_prefix + '_' + str(shard_id) + '.' + output_format
             bert_preprocessing_command += ' --vocab_file=' + args.vocab_file
@@ -244,6 +265,7 @@ if __name__ == "__main__":
             'bookscorpus',
             'wikicorpus_en',
             'wikicorpus_zh',
+            'wikicorpus_all',
             'books_wiki_en_corpus',
             'google_pretrained_weights',
             'nvidia_pretrained_weights',

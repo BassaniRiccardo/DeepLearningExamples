@@ -14,7 +14,6 @@
 import bz2
 import os
 import urllib.request
-import subprocess
 import sys
 import subprocess
 
@@ -26,14 +25,29 @@ class WikiDownloader:
             os.makedirs(self.save_path)
 
         self.language = language
-        # Use a mirror from https://dumps.wikimedia.org/mirrors.html if the below links do not work
         self.download_urls = {
+            'ar' : 'https://dumps.wikimedia.org/arwiki/latest/arwiki-latest-pages-articles.xml.bz2',
+            'bn' : 'https://dumps.wikimedia.org/bnwiki/latest/bnwiki-latest-pages-articles.xml.bz2',
             'en' : 'https://dumps.wikimedia.org/enwiki/latest/enwiki-latest-pages-articles.xml.bz2',
+            'fi' : 'https://dumps.wikimedia.org/fiwiki/latest/fiwiki-latest-pages-articles.xml.bz2',
+            'id' : 'https://dumps.wikimedia.org/idwiki/latest/idwiki-latest-pages-articles.xml.bz2',
+            'ko' : 'https://dumps.wikimedia.org/kowiki/latest/kowiki-latest-pages-articles.xml.bz2',
+            'ru' : 'https://dumps.wikimedia.org/ruwiki/latest/ruwiki-latest-pages-articles.xml.bz2',
+            'sw' : 'https://dumps.wikimedia.org/swwiki/latest/swwiki-latest-pages-articles.xml.bz2',
+            'te' : 'https://dumps.wikimedia.org/tewiki/latest/tewiki-latest-pages-articles.xml.bz2',
             'zh' : 'https://dumps.wikimedia.org/zhwiki/latest/zhwiki-latest-pages-articles.xml.bz2'
         }
 
         self.output_files = {
+            'ar' : 'wikicorpus_en.xml.bz2',
+            'bn' : 'wikicorpus_bn.xml.bz2',
             'en' : 'wikicorpus_en.xml.bz2',
+            'fi' : 'wikicorpus_fi.xml.bz2',
+            'id' : 'wikicorpus_id.xml.bz2',
+            'ko' : 'wikicorpus_ko.xml.bz2',
+            'ru' : 'wikicorpus_ru.xml.bz2',
+            'sw' : 'wikicorpus_sw.xml.bz2',
+            'te' : 'wikicorpus_te.xml.bz2',
             'zh' : 'wikicorpus_zh.xml.bz2'
         }
 
@@ -59,3 +73,4 @@ class WikiDownloader:
 
         else:
             assert False, 'WikiDownloader not implemented for this language yet.'
+
