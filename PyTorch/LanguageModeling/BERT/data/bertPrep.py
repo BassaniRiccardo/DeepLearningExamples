@@ -23,13 +23,16 @@ import os
 import pprint
 import subprocess
 
+from transformers import BertTokenizer
+import pickle
+
 CREATE_PRETRAINING_DATA_SCRIPT_PATH = 'python /content/drive/MyDrive/Thesis/projectFiles/DeepLearningExamples/TensorFlow/LanguageModeling/BERT/utils/create_pretraining_data.py'
 
 def main(args):
     working_dir = os.environ['BERT_PREP_WORKING_DIR']
-    # langs_all = ["ar", "bn", "en", "fi","id", "ko", "ru", "sw", "te"]
-    langs_all = ["sw"]
+    langs_all = args.languages.split(",")
 
+    print("Languages:", langs_all)
     print('Working Directory:', working_dir)
     print('Action:', args.action)
     print('Dataset Name:', args.dataset)
@@ -46,9 +49,23 @@ def main(args):
         'extracted' : working_dir +'/extracted',    # Extracted from whatever the initial format is (e.g., wikiextractor)
         'formatted' : working_dir + '/formatted_one_article_per_line',    # This is the level where all sources should look the same
         'sharded' : working_dir + '/sharded_' + "training_shards_" + str(args.n_training_shards) + "_test_shards_" + str(args.n_test_shards) + "_fraction_" + str(args.fraction_test_set),
-        'tfrecord' : working_dir + '/tfrecord'+ hdf5_tfrecord_folder_prefix,
-        'hdf5': working_dir + '/hdf5' + hdf5_tfrecord_folder_prefix
+        'tfrecord' : working_dir + '/tfrecord',
+        'hdf5': working_dir + '/hdf5'
     }
+
+    if args.cid_mapping:
+      directory_structure['formatted'] += '/cid_mapping'
+      directory_structure['sharded'] += '_cid_mapping'
+      directory_structure['tfrecord'] += '_cid_mapping'
+      directory_structure['hdf5'] += '_cid_mapping'
+    else:
+      directory_structure['formatted'] += '/baseline'
+      directory_structure['sharded'] += '_baseline'
+      directory_structure['tfrecord'] += '_baseline'
+      directory_structure['hdf5'] += '_baseline'
+    
+    directory_structure['tfrecord'] += hdf5_tfrecord_folder_prefix
+    directory_structure['hdf5'] += hdf5_tfrecord_folder_prefix
 
     print('\nDirectory Structure:')
     pp = pprint.PrettyPrinter(indent=2)
@@ -59,7 +76,7 @@ def main(args):
         if not os.path.exists(directory_structure['download']):
             os.makedirs(directory_structure['download'])
 
-        downloader = Downloader.Downloader(args.dataset, directory_structure['download'])
+        downloader = Downloader.Downloader(args.dataset, directory_structure['download'], all_langs)
         downloader.download()
 
     elif args.action == 'text_formatting':
@@ -70,42 +87,6 @@ def main(args):
 
         if not os.path.exists(directory_structure['formatted']):
             os.makedirs(directory_structure['formatted'])
-
-        if args.dataset == 'bookscorpus':
-            books_path = directory_structure['download'] + '/bookscorpus'
-            #books_path = directory_structure['download']
-            output_filename = directory_structure['formatted'] + '/bookscorpus_one_book_per_line.txt'
-            books_formatter = BookscorpusTextFormatting.BookscorpusTextFormatting(books_path, output_filename, recursive=True)
-            books_formatter.merge()
-
-        elif args.dataset == 'wikicorpus_en':
-            if args.skip_wikiextractor == 0:
-                path_to_wikiextractor_in_container = '/workspace/wikiextractor/WikiExtractor.py'
-                wikiextractor_command = path_to_wikiextractor_in_container + ' ' + directory_structure['download'] + '/' + args.dataset + '/wikicorpus_en.xml ' + '-b 100M --processes ' + str(args.n_processes) + ' -o ' + directory_structure['extracted'] + '/' + args.dataset
-                print('WikiExtractor Command:', wikiextractor_command)
-                wikiextractor_process = subprocess.run(wikiextractor_command, shell=True, check=True)
-                #wikiextractor_process.communicate()
-
-            wiki_path = directory_structure['extracted'] + '/wikicorpus_en'
-            output_filename = directory_structure['formatted'] + '/wikicorpus_en_one_article_per_line.txt'
-            wiki_formatter = WikicorpusTextFormatting.WikicorpusTextFormatting(wiki_path, output_filename, recursive=True)
-            wiki_formatter.merge()
-
-        elif args.dataset == 'wikicorpus_zh':
-            assert False, 'wikicorpus_zh not fully supported at this time. The simplified/tradition Chinese data needs to be translated and properly segmented still, and should work once this step is added.'
-            if args.skip_wikiextractor == 0:
-                path_to_wikiextractor_in_container = '/workspace/wikiextractor/WikiExtractor.py'
-                wikiextractor_command = path_to_wikiextractor_in_container + ' ' + directory_structure['download'] + '/' + args.dataset + '/wikicorpus_zh.xml ' + '-b 100M --processes ' + str(args.n_processes) + ' -o ' + directory_structure['extracted'] + '/' + args.dataset
-                print('WikiExtractor Command:', wikiextractor_command)
-                wikiextractor_process = subprocess.run(wikiextractor_command, shell=True, check=True)
-                #wikiextractor_process.communicate()
-
-            wiki_path = directory_structure['extracted'] + '/wikicorpus_zh'
-            output_filename = directory_structure['formatted'] + '/wikicorpus_zh_one_article_per_line.txt'
-            wiki_formatter = WikicorpusTextFormatting.WikicorpusTextFormatting(wiki_path, output_filename, recursive=True)
-            wiki_formatter.merge()
-
-            assert os.stat(output_filename).st_size > 0, 'File glob did not pick up extracted wiki files from WikiExtractor.'
 
         elif args.dataset == 'wikicorpus_all':
           for ln in langs_all:
@@ -123,18 +104,10 @@ def main(args):
         # Note: books+wiki requires user to provide list of input_files (comma-separated with no spaces)
         if args.dataset == 'bookscorpus' or 'wikicorpus' in args.dataset or 'books_wiki' in args.dataset:
             if args.input_files is None:
-                if args.dataset == 'bookscorpus':
-                    args.input_files = [directory_structure['formatted'] + '/bookscorpus_one_book_per_line.txt']
-                elif args.dataset == 'wikicorpus_en':
-                    args.input_files = [directory_structure['formatted'] + '/wikicorpus_en_one_article_per_line.txt']
-                elif args.dataset == 'wikicorpus_zh':
-                    args.input_files = [directory_structure['formatted'] + '/wikicorpus_zh_one_article_per_line.txt']
-                elif args.dataset == 'wikicorpus_all':
+                if args.dataset == 'wikicorpus_all':
                     args.input_files = []
                     for ln in langs_all:
                       args.input_files.append(directory_structure['formatted'] + '/wikicorpus_' + ln + '_one_article_per_line.txt')
-                elif args.dataset == 'books_wiki_en_corpus':
-                    args.input_files = [directory_structure['formatted'] + '/bookscorpus_one_book_per_line.txt', directory_structure['formatted'] + '/wikicorpus_en_one_article_per_line.txt']
 
             output_file_prefix = directory_structure['sharded'] + '/' + args.dataset + '/' + args.dataset
 
@@ -149,10 +122,18 @@ def main(args):
             # Different languages (e.g., Chinese simplified/traditional) may require translation and
             # other packages to be called from here -- just add a conditional branch for those extra steps
 
-            # be careful here with ad hoc English preprocessing and eventually skip it
-            segmenter = TextSharding.NLTKSegmenter()
-            sharding = TextSharding.Sharding(args.input_files, output_file_prefix, args.n_training_shards, args.n_test_shards, args.fraction_test_set)
+            # be careful here: is nltk the best option for multilingual sentence tokenization?
 
+            if args.cid_mapping:
+              cid_mapper = pickle.load( open( args.cid_mapper_pickle_path, "rb") )
+              monolingual_tokenizers = dict()
+              for ln in langs_all:
+                monolingual_tokenizers[ln] = BertTokenizer(args.monolingual_tokenizers_root_path + "/" + ln + '.txt', do_lower_case=False, add_special_tokens = True)
+              segmenter = TextSharding.NLTKSegmenter(args.cid_mapping, cid_mapper=cid_mapper, mono_tokenizers=monolingual_tokenizers)
+            else:
+              segmenter = TextSharding.NLTKSegmenter(args.cid_mapping, lowercase=args.manual_lowercase)
+
+            sharding = TextSharding.Sharding(args.input_files, output_file_prefix, args.n_training_shards, args.n_test_shards, args.fraction_test_set)
             sharding.load_articles()
             sharding.segment_articles_into_sentences(segmenter)
             sharding.distribute_articles_over_shards()
@@ -262,17 +243,7 @@ if __name__ == "__main__":
         type=str,
         help='Specify the dataset to perform --action on',
         choices={
-            'bookscorpus',
-            'wikicorpus_en',
-            'wikicorpus_zh',
-            'wikicorpus_all',
-            'books_wiki_en_corpus',
-            'google_pretrained_weights',
-            'nvidia_pretrained_weights',
-            'mrpc',
-            'sst-2',
-            'squad',
-            'all'
+            'wikicorpus_all'
         }
     )
 
@@ -380,6 +351,44 @@ if __name__ == "__main__":
         type=str,
         help='Specify the action you want the app to take. e.g., generate vocab, segment, create tfrecords'
     )
+
+    parser.add_argument(
+        '--monolingual_tokenizers_root_path',
+        type=str,
+        help='Specify absolute path of the monolingual tokenizers vocabularies. The language specific files are supposed to be named -ln.txt.-',
+        default=None
+    )
+
+    parser.add_argument(
+        '--cid_mapper_pickle_path',
+        type=str,
+        help='Specify absolute path of the pickle file containing the cID mapper.',
+        default=None
+    )
+
+    parser.add_argument(
+        '--cid_mapping',
+        type=int,
+        help='Specify whether to map the text to cluster IDs.',
+        default=0
+    )
+  
+    parser.add_argument(
+        '--manual_lowercase',
+        type=int,
+        help='Specify whether to lowercase sentences. This is done in the sharding process.',
+        default=1
+    )
+
+    parser.add_argument(
+        '--languages',
+        type=int,
+        help='Specify the languages.',
+        default='ar,bn,en,fi,id,ko,ru,sw,te'
+    )
+
+
+    
 
     args = parser.parse_args()
     main(args)

@@ -34,7 +34,8 @@ class Sharding:
         self.output_test_identifier = '_test'
         self.output_file_extension = '.txt'
 
-        self.articles = {}    # key: integer identifier, value: list of articles
+        self.articles = {}    # key: integer identifier, value: list of articles    ??? just one article, isn't it?
+        self.languages = {}
         self.sentences = {}    # key: integer identifier, value: list of sentences
         self.output_training_files = {}    # key: filename, value: list of articles to go into file
         self.output_test_files = {}  # key: filename, value: list of articles to go into file
@@ -49,10 +50,14 @@ class Sharding:
         global_article_count = 0
         for input_file in self.input_files:
             print('input file:', input_file)
+            # extract language from filename
+            ln = input_file.split("_")[-5]
             with open(input_file, mode='r', newline='\n') as f:
                 for i, line in enumerate(f):
                     if line.strip():
                         self.articles[global_article_count] = line.rstrip()
+                        # save a list of languages in order to do the cid mapping
+                        self.languages[global_article_count] = ln
                         global_article_count += 1
 
         print('End: Loading Articles: There are', len(self.articles), 'articles.')
@@ -111,7 +116,8 @@ class Sharding:
 
         else:    # serial option
             for i, article in enumerate(self.articles):
-                self.sentences[i] = segmenter.segment_string(self.articles[article])
+
+                self.sentences[i] = segmenter.segment_string(self.articles[article], self.languages[article])
 
                 if i % 5000 == 0:
                     print('Segmenting article', i)
@@ -319,9 +325,60 @@ import nltk
 nltk.download('punkt')
 
 class NLTKSegmenter:
-    def __init(self):
+    def __init__(self, cid_mapping, cid_mapper=None, mono_tokenizers=None, lowercase=1):
+        self.cid_mapping = cid_mapping
+        self.cid_mapper = cid_mapper
+        self.mono_tokenizers = mono_tokenizers
         pass
 
-    def segment_string(self, article):
-        return nltk.tokenize.sent_tokenize(article)
+    def segment_string(self, article, ln):
+        sentences = nltk.tokenize.sent_tokenize(article)
+        if self.cid_mapping:
+          mapped_sentences = [encode_cID(fast_tokenize(line, ln, self.mono_tokenizers[ln]), self.cid_mapper) for line in sentences]
+          return mapped_sentences
+        else:
+          if lowercase:
+            lc_sentences = [s.lower() for s in sentences]
+            return lc_sentences
+          else:
+            return sentences
+
+
+def fast_tokenize(text, ln, tokenizer, mark=True):
+  """
+  Tokenizes a text given a language and a tokenizer. In addition to the tokenization provided by the passed tokenizer:
+  - lowercases the text;
+  - replaces all digits with 0s;
+  - marks tokens with a langaguage marker ("_ln").
+  Returns a list of strings.
+  """
+  text = text.lower()
+  text = ''.join("0" if c.isdigit() else c for c in text)
+  tokens = tokenizer.tokenize(text)
+  if mark:
+    for i, t in enumerate(tokens):
+      tokens[i] = t + '_' + ln            
+  return tokens
+
+
+def encode_cID(tokens, tok_to_cID, verbose=False):
+  """
+  Encodes a sentence as a list of cluster IDs (list of strings).
+  It takes as input a list of tokens. If a token is not in the vocabulary, it tries to unmark it.
+  If it still cannot find it, it encodes it as "UNK".
+  Returns a list of strings (representing numbers).
+  """
+  cIDs = []
+  for t in tokens:
+    try:
+      id = tok_to_cID[t]
+    except:
+      try:
+        id = tok_to_cID[t[:-3]]
+      except:
+        id = "[UNK]"
+    cIDs.append(id)
+  if verbose:
+    print(tokens)
+  return " ".join(cIDs)
 
