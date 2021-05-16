@@ -382,7 +382,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         '--languages',
-        type=int,
+        type=str,
         help='Specify the languages.',
         default='ar,bn,en,fi,id,ko,ru,sw,te'
     )

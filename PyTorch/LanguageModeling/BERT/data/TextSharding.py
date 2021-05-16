@@ -329,6 +329,7 @@ class NLTKSegmenter:
         self.cid_mapping = cid_mapping
         self.cid_mapper = cid_mapper
         self.mono_tokenizers = mono_tokenizers
+        self.lowercase = lowercase
         pass
 
     def segment_string(self, article, ln):
@@ -337,7 +338,7 @@ class NLTKSegmenter:
           mapped_sentences = [encode_cID(fast_tokenize(line, ln, self.mono_tokenizers[ln]), self.cid_mapper) for line in sentences]
           return mapped_sentences
         else:
-          if lowercase:
+          if self.lowercase:
             lc_sentences = [s.lower() for s in sentences]
             return lc_sentences
           else:
