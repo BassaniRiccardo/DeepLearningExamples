@@ -18,6 +18,8 @@ from BooksDownloader import BooksDownloader
 from GLUEDownloader import GLUEDownloader
 from SquadDownloader import SquadDownloader
 
+from pathlib import Path
+
 
 class Downloader:
 

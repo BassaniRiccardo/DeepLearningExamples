@@ -17,9 +17,11 @@ import urllib.request
 import sys
 import subprocess
 
+from pathlib import Path
+
 class WikiDownloader:
     def __init__(self, language, save_path):
-        self.save_path = save_path + '/wikicorpus_' + language
+        self.save_path = save_path / ('wikicorpus_' + language)
 
         if not os.path.exists(self.save_path):
             os.makedirs(self.save_path)
@@ -27,15 +29,7 @@ class WikiDownloader:
         self.language = language
         self.download_urls = {
             'ar' : 'https://dumps.wikimedia.org/arwiki/latest/arwiki-latest-pages-articles.xml.bz2',
-            'bn' : 'https://dumps.wikimedia.org/bnwiki/latest/bnwiki-latest-pages-articles.xml.bz2',
-            'en' : 'https://dumps.wikimedia.org/enwiki/latest/enwiki-latest-pages-articles.xml.bz2',
-            'fi' : 'https://dumps.wikimedia.org/fiwiki/latest/fiwiki-latest-pages-articles.xml.bz2',
-            'id' : 'https://dumps.wikimedia.org/idwiki/latest/idwiki-latest-pages-articles.xml.bz2',
-            'ko' : 'https://dumps.wikimedia.org/kowiki/latest/kowiki-latest-pages-articles.xml.bz2',
-            'ru' : 'https://dumps.wikimedia.org/ruwiki/latest/ruwiki-latest-pages-articles.xml.bz2',
-            'sw' : 'https://dumps.wikimedia.org/swwiki/latest/swwiki-latest-pages-articles.xml.bz2',
-            'te' : 'https://dumps.wikimedia.org/tewiki/latest/tewiki-latest-pages-articles.xml.bz2',
-            'zh' : 'https://dumps.wikimedia.org/zhwiki/latest/zhwiki-latest-pages-articles.xml.bz2'
+TY'
         }
 
         self.output_files = {
@@ -58,10 +52,10 @@ class WikiDownloader:
             filename = self.output_files[self.language]
 
             print('Downloading:', url)
-            if os.path.isfile(self.save_path + '/' + filename):
+            if os.path.isfile(self.save_path / filename):
                 print('** Download file already exists, skipping download')
             else:
-                cmd = ['wget', url, '--output-document={}'.format(self.save_path + '/' + filename)]
+                cmd = ['wget', url, '--output-document={}'.format(str(self.save_path / filename))]
                 print('Running:', cmd)
                 status = subprocess.run(cmd)
                 if status.returncode != 0:
@@ -69,7 +63,7 @@ class WikiDownloader:
 
             # Always unzipping since this is relatively fast and will overwrite
             print('Unzipping:', self.output_files[self.language])
-            subprocess.run('bzip2 -dk ' + self.save_path + '/' + filename, shell=True, check=True)
+            subprocess.run('bzip2 -dk ' + str(self.save_path / filename), shell=True, check=True)
 
         else:
             assert False, 'WikiDownloader not implemented for this language yet.'

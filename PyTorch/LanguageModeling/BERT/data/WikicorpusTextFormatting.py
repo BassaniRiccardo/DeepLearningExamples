@@ -24,8 +24,8 @@ class WikicorpusTextFormatting:
     # This puts one article per line
     def merge(self):
         with open(self.output_filename, mode='w', newline='\n') as ofile:
-            for dirname in glob.glob(self.wiki_path + '/*/', recursive=False):
-                for filename in glob.glob(dirname + 'wiki_*', recursive=self.recursive):
+            for dirname in self.wiki_path.glob('*'):
+                for filename in dirname.glob('wiki_**'):
                     print(filename)
                     article_lines = []
                     article_open = False

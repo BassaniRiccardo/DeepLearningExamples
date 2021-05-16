@@ -1,0 +1,16 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\PyTorch",
+    "\\PyTorch\\LanguageModeling",
+    "\\PyTorch\\LanguageModeling\\BERT",
+    "\\PyTorch\\LanguageModeling\\BERT\\data",
+    "\\PyTorch\\LanguageModeling\\BERT\\data\\download",
+    "\\PyTorch\\LanguageModeling\\BERT\\data\\extracted",
+    "\\PyTorch\\LanguageModeling\\BERT\\data\\extracted\\wikicorpus_sw",
+    "\\PyTorch\\LanguageModeling\\BERT\\data\\extracted\\wikicorpus_sw\\AA",
+    "\\PyTorch\\LanguageModeling\\BERT\\data\\formatted_one_article_per_line"
+  ],
+  "SelectedNode": "\\PyTorch\\LanguageModeling\\BERT\\data\\test.py",
+  "PreviewInSolutionExplorer": false
+}
